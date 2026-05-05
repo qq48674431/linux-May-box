@@ -34,7 +34,7 @@ linux-May-box/
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/<你的用户名>/linux-May-box.git
+git clone https://github.com/qq48674431/linux-May-box.git
 cd linux-May-box
 
 # 2. 将 sing-box 可执行文件放到本目录下
