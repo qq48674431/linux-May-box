@@ -106,7 +106,7 @@ systemctl restart systemd-journald
 # ============================================================
 #  完成
 # ============================================================
-LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+LOCAL_IP=$(curl -s4 --connect-timeout 3 ifconfig.me 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo -e "${GREEN}  部署完成！${NC}"
