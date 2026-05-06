@@ -23,30 +23,22 @@ linux-May-box/
 └── README.md
 ```
 
-## 快速部署
+## 一键安装
 
-### 前置条件
-
-- Debian / Ubuntu 系统（x86_64）
-- 已下载 [sing-box](https://github.com/SagerNet/sing-box/releases) 对应架构的可执行文件
-
-### 步骤
+SSH 登录 root 后，粘贴以下命令即可完成全部部署（自动克隆仓库 + 下载 sing-box + 注册服务 + 内核优化）：
 
 ```bash
-# 1. 克隆仓库
-git clone https://github.com/qq48674431/linux-May-box.git
-cd linux-May-box
-
-# 2. 将 sing-box 可执行文件放到本目录下
-#    （从 GitHub Releases 下载后复制过来）
-cp /path/to/sing-box ./
-
-# 3. 一键部署
-chmod +x install.sh
-sudo ./install.sh
+bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/install.sh)
 ```
 
-部署完成后 sing-box 会以 systemd 服务自动运行。
+脚本会自动：
+1. 安装依赖（git / curl / jq）
+2. 克隆仓库到 `/opt/linux-May-box`
+3. 从 GitHub Releases 下载最新 sing-box（自动识别 x86_64 / arm64）
+4. 注册 systemd 服务并启动
+5. 开启 BBR + IP 转发 + 禁止休眠 + 日志限制
+
+> 再次执行同一命令即可**更新**（会 `git pull` 最新代码，已有的 sing-box 不会重复下载）。
 
 ### 新系统首次连接（可选）
 

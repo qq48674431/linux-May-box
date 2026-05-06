@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ============================================================
 #  sing-box 旁路由一键部署脚本
-#  适用系统: Debian / Ubuntu (x86_64 工控机 / VPS)
-#  用法:     chmod +x install.sh && sudo ./install.sh
+#  适用系统: Debian / Ubuntu (x86_64 / arm64)
+#  一键安装: bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/install.sh)
 # ============================================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -12,25 +12,68 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-[[ $EUID -ne 0 ]] && error "请以 root 身份运行: sudo ./install.sh"
+[[ $EUID -ne 0 ]] && error "请以 root 身份运行: sudo bash install.sh"
 
-WORK_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_URL="https://github.com/qq48674431/linux-May-box.git"
+WORK_DIR="/opt/linux-May-box"
 SINGBOX_BIN="${WORK_DIR}/sing-box"
 SINGBOX_CONF="${WORK_DIR}/config.json"
 SERVICE_NAME="mysingbox"
 
 # ============================================================
-#  阶段一: 校验核心文件
+#  阶段一: 安装依赖 + 克隆仓库
 # ============================================================
-info "检查核心文件..."
-[[ ! -f "$SINGBOX_BIN"  ]] && error "缺少 sing-box 可执行文件，请先放到 ${WORK_DIR}/ 目录"
-[[ ! -f "$SINGBOX_CONF" ]] && error "缺少 config.json，请先放到 ${WORK_DIR}/ 目录"
+info "安装基础依赖..."
+apt-get update -qq && apt-get install -y -qq git curl tar jq > /dev/null 2>&1
+
+if [[ -d "${WORK_DIR}/.git" ]]; then
+    info "检测到已有仓库，拉取最新代码..."
+    git -C "$WORK_DIR" pull --ff-only
+else
+    info "克隆仓库到 ${WORK_DIR}..."
+    git clone "$REPO_URL" "$WORK_DIR"
+fi
+
+cd "$WORK_DIR"
+
+# ============================================================
+#  阶段二: 自动下载 sing-box（如本地没有则下载最新版）
+# ============================================================
+if [[ -f "$SINGBOX_BIN" ]]; then
+    info "sing-box 已存在，跳过下载"
+else
+    info "正在获取 sing-box 最新版本号..."
+    LATEST_VER=$(curl -sL "https://api.github.com/repos/SagerNet/sing-box/releases/latest" | jq -r '.tag_name')
+    [[ -z "$LATEST_VER" || "$LATEST_VER" == "null" ]] && error "无法获取 sing-box 最新版本，请检查网络"
+    VER_NUM="${LATEST_VER#v}"
+
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64)  SB_ARCH="amd64" ;;
+        aarch64) SB_ARCH="arm64" ;;
+        armv7l)  SB_ARCH="armv7" ;;
+        *)       error "不支持的架构: $ARCH" ;;
+    esac
+
+    DL_URL="https://github.com/SagerNet/sing-box/releases/download/${LATEST_VER}/sing-box-${VER_NUM}-linux-${SB_ARCH}.tar.gz"
+    info "下载 sing-box ${LATEST_VER} (${SB_ARCH})..."
+    info "地址: ${DL_URL}"
+
+    TMP_DIR=$(mktemp -d)
+    curl -sL "$DL_URL" -o "${TMP_DIR}/sing-box.tar.gz" || error "下载失败，请检查网络"
+    tar -xzf "${TMP_DIR}/sing-box.tar.gz" -C "$TMP_DIR"
+    cp "${TMP_DIR}/sing-box-${VER_NUM}-linux-${SB_ARCH}/sing-box" "$SINGBOX_BIN"
+    rm -rf "$TMP_DIR"
+
+    info "sing-box ${LATEST_VER} 下载完成"
+fi
 
 chmod +x "$SINGBOX_BIN"
-info "sing-box 已赋予执行权限"
+[[ ! -f "$SINGBOX_CONF" ]] && error "缺少 config.json"
+info "sing-box 已就绪"
 
 # ============================================================
-#  阶段二: 创建 systemd 服务（含高并发优化）
+#  阶段三: 创建 systemd 服务（含高并发优化）
 # ============================================================
 info "创建 systemd 服务: ${SERVICE_NAME}..."
 
@@ -57,7 +100,7 @@ systemctl enable --now ${SERVICE_NAME}
 info "服务已启动并设置开机自启"
 
 # ============================================================
-#  阶段三: 内核网络优化（BBR + IP 转发）
+#  阶段四: 内核网络优化（BBR + IP 转发）
 # ============================================================
 info "配置内核参数 (BBR / IP 转发)..."
 
@@ -71,7 +114,7 @@ sysctl --system > /dev/null 2>&1
 info "BBR 与 IP 转发已生效"
 
 # ============================================================
-#  阶段四: 禁止系统休眠（工控机专属）
+#  阶段五: 禁止系统休眠（工控机专属）
 # ============================================================
 info "屏蔽休眠/挂起..."
 
@@ -89,7 +132,7 @@ systemctl restart systemd-logind
 info "休眠已屏蔽"
 
 # ============================================================
-#  阶段五: 日志持久化 + 限制空间（防爆满）
+#  阶段六: 日志持久化 + 限制空间（防爆满）
 # ============================================================
 info "配置日志持久化 (上限 5G)..."
 
@@ -108,8 +151,10 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  部署完成！sing-box 已在后台运行${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
+echo "  项目目录:  ${WORK_DIR}"
 echo "  查看状态:  systemctl status ${SERVICE_NAME}"
 echo "  查看日志:  journalctl -u ${SERVICE_NAME} -f"
 echo "  重启服务:  systemctl restart ${SERVICE_NAME}"
 echo "  停止服务:  systemctl stop ${SERVICE_NAME}"
+echo "  一键巡检:  ${WORK_DIR}/check.sh"
 echo ""
