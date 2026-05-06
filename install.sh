@@ -24,7 +24,7 @@ SERVICE_NAME="mysingbox"
 #  阶段一: 安装依赖 + 克隆仓库
 # ============================================================
 info "安装基础依赖..."
-apt-get update -qq && apt-get install -y -qq git curl tar jq python3 python3-pip python3-venv > /dev/null 2>&1
+apt-get update -qq && apt-get install -y -qq git curl python3 python3-pip python3-venv > /dev/null 2>&1
 
 if [[ -d "${WORK_DIR}/.git" ]]; then
     info "检测到已有仓库，拉取最新代码..."
@@ -37,35 +37,17 @@ fi
 cd "$WORK_DIR"
 
 # ============================================================
-#  阶段二: 自动下载 sing-box（如本地没有则下载最新版）
+#  阶段二: 从本仓库 Release 下载 sing-box
 # ============================================================
+SINGBOX_DL_URL="https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box"
+
 if [[ -f "$SINGBOX_BIN" ]]; then
     info "sing-box 已存在，跳过下载"
 else
-    info "正在获取 sing-box 最新版本号..."
-    LATEST_VER=$(curl -sL "https://api.github.com/repos/SagerNet/sing-box/releases/latest" | jq -r '.tag_name')
-    [[ -z "$LATEST_VER" || "$LATEST_VER" == "null" ]] && error "无法获取 sing-box 最新版本，请检查网络"
-    VER_NUM="${LATEST_VER#v}"
-
-    ARCH=$(uname -m)
-    case "$ARCH" in
-        x86_64)  SB_ARCH="amd64" ;;
-        aarch64) SB_ARCH="arm64" ;;
-        armv7l)  SB_ARCH="armv7" ;;
-        *)       error "不支持的架构: $ARCH" ;;
-    esac
-
-    DL_URL="https://github.com/SagerNet/sing-box/releases/download/${LATEST_VER}/sing-box-${VER_NUM}-linux-${SB_ARCH}.tar.gz"
-    info "下载 sing-box ${LATEST_VER} (${SB_ARCH})..."
-    info "地址: ${DL_URL}"
-
-    TMP_DIR=$(mktemp -d)
-    curl -sL "$DL_URL" -o "${TMP_DIR}/sing-box.tar.gz" || error "下载失败，请检查网络"
-    tar -xzf "${TMP_DIR}/sing-box.tar.gz" -C "$TMP_DIR"
-    cp "${TMP_DIR}/sing-box-${VER_NUM}-linux-${SB_ARCH}/sing-box" "$SINGBOX_BIN"
-    rm -rf "$TMP_DIR"
-
-    info "sing-box ${LATEST_VER} 下载完成"
+    info "从仓库 Release 下载 sing-box..."
+    info "地址: ${SINGBOX_DL_URL}"
+    curl -sL "$SINGBOX_DL_URL" -o "$SINGBOX_BIN" || error "下载失败，请检查网络"
+    info "sing-box 下载完成"
 fi
 
 chmod +x "$SINGBOX_BIN"
@@ -106,7 +88,7 @@ WEB_SERVICE="singbox-web"
 
 info "安装 Python 依赖..."
 python3 -m venv "${WORK_DIR}/venv"
-"${WORK_DIR}/venv/bin/pip" install -q -r "${WORK_DIR}/requirements.txt"
+"${WORK_DIR}/venv/bin/pip" install -q -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r "${WORK_DIR}/requirements.txt"
 
 info "创建 Web 面板服务: ${WEB_SERVICE}..."
 
