@@ -14,12 +14,14 @@
 
 ```
 linux-May-box/
-├── install.sh          # 一键部署脚本（服务注册 + 内核优化）
+├── install.sh          # 一键部署脚本（sing-box + Web面板 + 内核优化）
+├── server.py           # Web 管理面板后端（Flask API，端口 8080）
+├── requirements.txt    # Python 依赖
+├── config.json         # sing-box 基础配置（TUN 模式）
+├── index.html          # Web 管理面板前端（Vue 3 + Tailwind）
+├── proxy-parser.js     # 代理链接解析/还原库
 ├── check.sh            # 运行状态巡检脚本
 ├── enable-root-ssh.sh  # 开启 Root SSH（新系统仅需执行一次）
-├── config.json         # sing-box 基础配置（TUN 模式）
-├── index.html          # Web 管理面板前端
-├── proxy-parser.js     # 代理链接解析/还原库
 └── README.md
 ```
 
@@ -32,11 +34,12 @@ bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/
 ```
 
 脚本会自动：
-1. 安装依赖（git / curl / jq）
+1. 安装依赖（git / curl / jq / python3）
 2. 克隆仓库到 `/opt/linux-May-box`
 3. 从 GitHub Releases 下载最新 sing-box（自动识别 x86_64 / arm64）
-4. 注册 systemd 服务并启动
-5. 开启 BBR + IP 转发 + 禁止休眠 + 日志限制
+4. 注册 sing-box systemd 服务并启动
+5. 部署 Web 管理面板（Flask），监听 `http://<机器IP>:8080`
+6. 开启 BBR + IP 转发 + 禁止休眠 + 日志限制
 
 > 再次执行同一命令即可**更新**（会 `git pull` 最新代码，已有的 sing-box 不会重复下载）。
 
@@ -52,25 +55,28 @@ bash enable-root-ssh.sh
 ## 日常运维
 
 ```bash
-# 查看服务状态
+# 查看 sing-box 状态
 systemctl status mysingbox
 
-# 重启服务（修改 config.json 后）
-systemctl restart mysingbox
+# 查看 Web 面板状态
+systemctl status singbox-web
 
-# 停止服务
-systemctl stop mysingbox
+# 重启全部服务
+systemctl restart mysingbox singbox-web
+
+# 停止全部服务
+systemctl stop mysingbox singbox-web
 
 # 查看实时日志
 journalctl -u mysingbox -f
 
 # 一键巡检系统状态
-sudo ./check.sh
+sudo /opt/linux-May-box/check.sh
 ```
 
 ## Web 管理面板
 
-面板由后端 API 驱动（需配合后端服务），提供以下功能：
+安装完成后浏览器访问 `http://<机器IP>:8080` 即可打开管理面板。功能如下：
 
 | 功能 | 说明 |
 |------|------|

@@ -24,7 +24,7 @@ SERVICE_NAME="mysingbox"
 #  阶段一: 安装依赖 + 克隆仓库
 # ============================================================
 info "安装基础依赖..."
-apt-get update -qq && apt-get install -y -qq git curl tar jq > /dev/null 2>&1
+apt-get update -qq && apt-get install -y -qq git curl tar jq python3 python3-pip python3-venv > /dev/null 2>&1
 
 if [[ -d "${WORK_DIR}/.git" ]]; then
     info "检测到已有仓库，拉取最新代码..."
@@ -97,10 +97,42 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now ${SERVICE_NAME}
-info "服务已启动并设置开机自启"
+info "sing-box 服务已启动并设置开机自启"
 
 # ============================================================
-#  阶段四: 内核网络优化（BBR + IP 转发）
+#  阶段四: 部署 Web 管理面板（Python + Flask）
+# ============================================================
+WEB_SERVICE="singbox-web"
+
+info "安装 Python 依赖..."
+python3 -m venv "${WORK_DIR}/venv"
+"${WORK_DIR}/venv/bin/pip" install -q -r "${WORK_DIR}/requirements.txt"
+
+info "创建 Web 面板服务: ${WEB_SERVICE}..."
+
+cat > /etc/systemd/system/${WEB_SERVICE}.service <<EOF
+[Unit]
+Description=Sing-box Web Panel
+After=network.target ${SERVICE_NAME}.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${WORK_DIR}
+ExecStart=${WORK_DIR}/venv/bin/python ${WORK_DIR}/server.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now ${WEB_SERVICE}
+info "Web 面板已启动 → http://0.0.0.0:8080"
+
+# ============================================================
+#  阶段五: 内核网络优化（BBR + IP 转发）
 # ============================================================
 info "配置内核参数 (BBR / IP 转发)..."
 
@@ -114,7 +146,7 @@ sysctl --system > /dev/null 2>&1
 info "BBR 与 IP 转发已生效"
 
 # ============================================================
-#  阶段五: 禁止系统休眠（工控机专属）
+#  阶段六: 禁止系统休眠（工控机专属）
 # ============================================================
 info "屏蔽休眠/挂起..."
 
@@ -132,7 +164,7 @@ systemctl restart systemd-logind
 info "休眠已屏蔽"
 
 # ============================================================
-#  阶段六: 日志持久化 + 限制空间（防爆满）
+#  阶段七: 日志持久化 + 限制空间（防爆满）
 # ============================================================
 info "配置日志持久化 (上限 5G)..."
 
@@ -146,15 +178,19 @@ info "日志已持久化，最大 5G"
 # ============================================================
 #  完成
 # ============================================================
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  部署完成！sing-box 已在后台运行${NC}"
-echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  部署完成！所有服务已在后台运行${NC}"
+echo -e "${GREEN}════════════════════════════════════════════${NC}"
+echo ""
+echo -e "  Web 面板:  ${YELLOW}http://${LOCAL_IP:-<本机IP>}:8080${NC}"
 echo ""
 echo "  项目目录:  ${WORK_DIR}"
-echo "  查看状态:  systemctl status ${SERVICE_NAME}"
+echo "  sing-box:  systemctl status ${SERVICE_NAME}"
+echo "  Web 面板:  systemctl status ${WEB_SERVICE}"
+echo "  重启全部:  systemctl restart ${SERVICE_NAME} ${WEB_SERVICE}"
 echo "  查看日志:  journalctl -u ${SERVICE_NAME} -f"
-echo "  重启服务:  systemctl restart ${SERVICE_NAME}"
-echo "  停止服务:  systemctl stop ${SERVICE_NAME}"
 echo "  一键巡检:  ${WORK_DIR}/check.sh"
 echo ""
