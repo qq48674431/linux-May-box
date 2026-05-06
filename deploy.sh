@@ -16,7 +16,9 @@ WORK_DIR="$(cd "$(dirname "$0")" && pwd)"
 SINGBOX_BIN="${WORK_DIR}/sing-box"
 SINGBOX_CONF="${WORK_DIR}/config.json"
 SERVICE_NAME="mysingbox"
-SINGBOX_DL_URL="https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box"
+
+SINGBOX_DIRECT="https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box"
+SINGBOX_PROXY="https://ghfast.top/https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box"
 
 # ============================================================
 #  阶段一: 下载 sing-box（定制版，自带 Web 面板）
@@ -24,9 +26,15 @@ SINGBOX_DL_URL="https://github.com/qq48674431/linux-May-box/releases/download/v1
 if [[ -f "$SINGBOX_BIN" ]]; then
     info "sing-box 已存在，跳过下载"
 else
+    DL_URL="$SINGBOX_DIRECT"
+    if ! curl -sfI --connect-timeout 5 https://github.com &>/dev/null; then
+        info "GitHub 直连不通，使用加速代理..."
+        DL_URL="$SINGBOX_PROXY"
+    fi
+
     info "下载 sing-box..."
-    info "地址: ${SINGBOX_DL_URL}"
-    curl -fSL --retry 3 "$SINGBOX_DL_URL" -o "$SINGBOX_BIN" || error "下载失败，请检查网络"
+    info "地址: ${DL_URL}"
+    curl -fSL --retry 3 --connect-timeout 15 "$DL_URL" -o "$SINGBOX_BIN" || error "下载失败，请检查网络"
 
     FILE_SIZE=$(stat -c%s "$SINGBOX_BIN" 2>/dev/null || echo 0)
     [[ "$FILE_SIZE" -lt 1000000 ]] && { rm -f "$SINGBOX_BIN"; error "下载文件异常（仅 ${FILE_SIZE} 字节），请重试"; }
