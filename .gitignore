@@ -9,11 +9,6 @@ sing-box
 Thumbs.db
 desktop.ini
 
-# Python 虚拟环境
-venv/
-__pycache__/
-*.pyc
-
 # IDE
 .vscode/
 .idea/
