@@ -2,10 +2,8 @@
 set -euo pipefail
 
 # ============================================================
-#  sing-box 一键安装（需能访问 GitHub）
+#  sing-box 一键安装（克隆仓库 → 执行 deploy.sh）
 #  用法: bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/install.sh)
-#
-#  如果网络不通，请手动用 Xftp 上传所有文件后执行:  sudo bash deploy.sh
 # ============================================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
@@ -16,7 +14,7 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 WORK_DIR="/opt/linux-May-box"
 
-command -v git &>/dev/null || { info "安装 git/curl..."; apt-get update -qq && apt-get install -y -qq git curl > /dev/null 2>&1; }
+command -v git &>/dev/null || { info "安装 git..."; apt-get update -qq && apt-get install -y -qq git > /dev/null 2>&1; }
 
 if [[ -d "${WORK_DIR}/.git" ]]; then
     info "拉取最新代码..."
@@ -24,12 +22,6 @@ if [[ -d "${WORK_DIR}/.git" ]]; then
 else
     info "克隆仓库..."
     git clone https://github.com/qq48674431/linux-May-box.git "$WORK_DIR"
-fi
-
-# 下载 sing-box
-if [[ ! -f "${WORK_DIR}/sing-box" ]]; then
-    info "下载 sing-box..."
-    curl -fSL --retry 3 https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box -o "${WORK_DIR}/sing-box"
 fi
 
 chmod +x "${WORK_DIR}/deploy.sh"
