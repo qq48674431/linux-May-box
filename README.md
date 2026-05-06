@@ -14,7 +14,8 @@
 
 ```
 linux-May-box/
-├── install.sh          # 一键部署脚本（sing-box + Web面板 + 内核优化）
+├── install.sh          # 一键安装引导（克隆仓库 → 执行 deploy.sh）
+├── deploy.sh           # 完整部署脚本（sing-box + Web面板 + 内核优化）
 ├── server.py           # Web 管理面板后端（Flask API，端口 8080）
 ├── requirements.txt    # Python 依赖
 ├── config.json         # sing-box 基础配置（TUN 模式）
@@ -34,12 +35,11 @@ bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/
 ```
 
 脚本会自动：
-1. 安装依赖（git / curl / jq / python3）
-2. 克隆仓库到 `/opt/linux-May-box`
-3. 从 GitHub Releases 下载最新 sing-box（自动识别 x86_64 / arm64）
-4. 注册 sing-box systemd 服务并启动
-5. 部署 Web 管理面板（Flask），监听 `http://<机器IP>:8080`
-6. 开启 BBR + IP 转发 + 禁止休眠 + 日志限制
+1. 克隆仓库到 `/opt/linux-May-box`
+2. 从仓库 Release 下载 sing-box 二进制文件
+3. 注册 sing-box systemd 服务并启动
+4. 部署 Web 管理面板（Flask），监听 `http://<机器IP>:8080`
+5. 开启 BBR + IP 转发 + 禁止休眠 + 日志限制
 
 > 再次执行同一命令即可**更新**（会 `git pull` 最新代码，已有的 sing-box 不会重复下载）。
 
