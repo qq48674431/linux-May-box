@@ -2,47 +2,34 @@
 set -euo pipefail
 
 # ============================================================
-#  sing-box 一键安装引导（自动识别网络环境，国内自动走代理）
+#  sing-box 一键安装（需能访问 GitHub）
 #  用法: bash <(curl -sL https://raw.githubusercontent.com/qq48674431/linux-May-box/main/install.sh)
+#
+#  如果网络不通，请手动用 Xftp 上传所有文件后执行:  sudo bash deploy.sh
 # ============================================================
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 [[ $EUID -ne 0 ]] && error "请以 root 身份运行"
 
-GITHUB_URL="https://github.com/qq48674431/linux-May-box.git"
-PROXY_URL="https://ghfast.top/https://github.com/qq48674431/linux-May-box.git"
 WORK_DIR="/opt/linux-May-box"
 
 command -v git &>/dev/null || { info "安装 git/curl..."; apt-get update -qq && apt-get install -y -qq git curl > /dev/null 2>&1; }
 
-# ── 检测 GitHub 连通性，不通则走代理 ──
-pick_repo_url() {
-    if curl -sfI --connect-timeout 5 https://github.com &>/dev/null; then
-        echo "$GITHUB_URL"
-    else
-        warn "GitHub 直连不通，使用加速代理..."
-        echo "$PROXY_URL"
-    fi
-}
-
 if [[ -d "${WORK_DIR}/.git" ]]; then
-    info "检测到已有仓库，拉取最新代码..."
-    git -C "$WORK_DIR" pull --ff-only 2>/dev/null || {
-        warn "pull 失败，重新克隆..."
-        rm -rf "$WORK_DIR"
-        REPO=$(pick_repo_url)
-        info "克隆: ${REPO}"
-        git clone "$REPO" "$WORK_DIR"
-    }
+    info "拉取最新代码..."
+    git -C "$WORK_DIR" pull --ff-only
 else
-    REPO=$(pick_repo_url)
-    info "克隆仓库到 ${WORK_DIR}..."
-    info "地址: ${REPO}"
-    git clone "$REPO" "$WORK_DIR"
+    info "克隆仓库..."
+    git clone https://github.com/qq48674431/linux-May-box.git "$WORK_DIR"
+fi
+
+# 下载 sing-box
+if [[ ! -f "${WORK_DIR}/sing-box" ]]; then
+    info "下载 sing-box..."
+    curl -fSL --retry 3 https://github.com/qq48674431/linux-May-box/releases/download/v1.0/sing-box -o "${WORK_DIR}/sing-box"
 fi
 
 chmod +x "${WORK_DIR}/deploy.sh"
