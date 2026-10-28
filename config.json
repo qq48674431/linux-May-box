@@ -23,8 +23,8 @@
         "172.19.0.1/30"
       ],
       "mtu": 1450,
-      "auto_route": true,
-      "strict_route": true,
+      "auto_route": false,
+      "strict_route": false,
       "stack": "system"
     }
   ],
@@ -49,6 +49,6 @@
       }
     ],
     "auto_detect_interface": true,
-    "final": "block"
+    "final": "direct"
   }
 }
